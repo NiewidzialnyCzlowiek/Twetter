@@ -1,5 +1,6 @@
 export interface IServerMessage {
     type: number;
+    userID: number;
     title: string;
     author: string;
     content: string;
