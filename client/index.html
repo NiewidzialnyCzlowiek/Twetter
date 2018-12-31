@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="styles/global.css">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,200,300,400" rel="stylesheet">
+    <title>Twatter</title>
+  </head>
+
+  <body>
+    <div class="login-wrapper">
+      <div class="title-bar-wrapper">
+          <img src="resources/logo.svg">
+          <h1>Twatter</h1>
+      </div>
+      <div class="login-card">
+          <input id="hostname-input" type="text">
+          <input id="port-input">
+        <button id="login-submit-button">Connect</button>
+        <p id="login-status"></p>
+      </div>
+    </div>
+
+    <div class="main-page-wrapper">
+        <div class="navbar-wrapper">
+          <img src="resources/logo-small.svg">
+          <ul>
+            <li><button id="feed-button">Feed</button></li>
+            <li><button id="write-button">Write</button></li>
+            <li><button id="subscribe-button">Subscribe</button></li>
+            <!-- <li><button id="send-message-button">?MS?</button></li> -->
+          </ul>
+        </div>
+
+        <div class="posts-wrapper">
+          <ul id="posts">
+          </ul>
+        </div>
+
+        <div class="write-post-wrapper">
+          <div class="write-post-card">
+            <div class="write-post-control">
+              <input id="title-input" type=text placeholder="Title">
+            </div>
+            <div class="write-post-control">
+              <textarea id="content-input" placeholder="Content"></textarea>
+            </div>
+            <div class="write-post-control">
+              <input id="tags-input" type=text placeholder="Tags">
+            </div>
+            <div class="write-post-control">
+              <button id="add-post-button">Post</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="subscriptions-wrapper">
+          <ul id="tags">
+          </ul>
+          <div class="new-tag-card">
+            <input id="tag-input" placeholder="Tag">
+            <button id="add-tag-button">Add Tag</button>
+          </div>
+        </div>
+        
+    </div>
+  </body>
+
+  <script>
+    require('./dist/renderer.js')
+  </script>
+</html>

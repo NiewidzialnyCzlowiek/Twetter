@@ -1,0 +1,328 @@
+.login-wrapper {
+    background: #E5E5E5;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-rows: 160px 1fr 10fr 1fr;
+    grid-template-columns: 1fr 5fr 1fr;
+    grid-template-areas: 'titlebar titlebar titlebar'
+                         '. . .'
+                         '. logincard .'
+                         '. . .';
+}
+
+.title-bar-wrapper {
+    background: #1F9FBB;
+    box-shadow: 0px 5px 30px rgba(0, 0, 0, 0.1);
+    grid-area: titlebar;
+    width: 100%;
+    height: 100%;
+
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 4fr 1fr;
+    grid-template-areas: '. . . '
+    '. logo .'
+    '. title .';
+}
+
+.title-bar-wrapper img {
+    grid-area: logo;
+    justify-self: center;
+    align-self: center;
+    width: 90px;
+    height: 90px;
+}
+
+.title-bar-wrapper h1 {
+    grid-area: title;
+    justify-self: center;
+    align-self: flex-start;
+    font-weight: 300;
+    font-size: 14pt;
+    margin: 0px;
+    color: #E5E5E5
+}
+
+.login-card {
+    grid-area: logincard;
+    background: #fdfdfd;
+    width: 100%;
+    height: 100%;
+    box-shadow: 0px 15px 30px rgba(0, 0, 0, 0.1);
+    display: grid;
+    row-gap: 10px;
+    grid-template-columns: 100%;
+    grid-template-rows: 50px 1fr 1fr 1fr auto;
+}
+
+#hostname-input {
+    grid-row: 2;
+}
+
+#port-input {
+    grid-row: 3;
+}
+
+#login-submit-button {
+    grid-row: 4;
+}
+
+#login-status {
+    grid-row: 5;
+    font-size: 10pt;
+    color: red;
+    font-weight: 300;
+}
+
+.login-card input {
+    border: none;
+    border-bottom: 2px solid #E5E5E5;
+    outline: none;
+    width: 184px;
+    padding: 8px;
+    font-size: 14pt;
+    font-weight: 200;
+    align-self: center;
+    justify-self: center;
+}
+
+.login-card input:focus {
+    border-bottom: 2px solid #1F9FBB;
+}
+
+.login-card button {
+    border: none;
+    background: #1F9FBB;
+    color: #fdfdfd;
+    width: 200px;
+    height: 30px;
+    font-size: 12pt;
+    align-self: center;
+    justify-self: center;
+    margin-top: 30px;
+}
+
+.main-page-wrapper {
+    background: #E5E5E5;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-rows: 40px 1fr;
+    grid-template-columns: 1fr 8fr 1fr;
+    grid-template-areas: 'navbar navbar navbar'
+    '. posts subscriptions';
+}
+
+.navbar-wrapper {
+    background: #1F9FBB;
+    box-shadow: 0px 5px 30px rgba(0, 0, 0, 0.15);
+    grid-area: navbar;
+    width: 100%;
+    height: 40px;
+    position: fixed;
+    top: 0;
+    display: grid;
+    grid-template-rows: 40px;
+    grid-template-columns: 1fr 8fr 1fr;
+    grid-template-areas: '. navbar-buttons navbar-logo';
+}
+
+.navbar-wrapper img {
+    width: 30px;
+    height: 30px;
+    margin-right: 15px;
+    margin-top: 5px;
+    grid-area: navbar-logo;
+    justify-self: right;
+}
+
+.navbar-wrapper ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    grid-area: navbar-buttons;
+}
+
+.navbar-wrapper li {
+    float: left;
+}
+
+.navbar-wrapper button {
+    color: #fdfdfd;
+    font-size: 13pt;
+    font-weight: 300;
+    background: #1F9FBB;
+    text-align: center;
+    border: none;
+    height: 40px;
+    width: 110px;
+}
+
+.page-indicator {
+    border-bottom: 2px solid #F7D001;
+}
+
+.navbar-wrapper button:hover {
+    background: #198299
+}
+
+.posts-wrapper {
+    grid-area: posts
+}
+
+.write-post-wrapper {
+    grid-area: posts;
+}
+
+.write-post-card {
+    margin: 10px 0 0 0;
+    background: #fdfdfd;
+    width: 100%;
+    height: 100%;
+    box-shadow: 0px 15px 30px rgba(0, 0, 0, 0.1);
+    grid-template-columns: 100%;
+    grid-template-rows: auto, auto, auto, auto;
+    justify-items: stretch;
+    padding: 0 0 0 20px;
+}
+
+.write-post-card input {
+    margin: 10px 10px 0 0;
+    font-size: 10pt;
+    font-weight: 300;
+    height: 30px;
+    padding: 8px;
+    align-self: center;
+    border: none;
+    border-left: #E5E5E5;
+}
+
+.write-post-card textarea {
+    align-self: center;
+    border: none;
+    border-left: #E5E5E5;
+    resize: none;
+    height: 200px;
+    font-size: 10pt;
+    padding: 8px;
+}
+
+.write-post-card button {
+    border: none;
+    background: #1F9FBB;
+    color: #fdfdfd;
+    width: 200px;
+    height: 30px;
+    font-size: 12pt;
+    justify-self: left;
+    margin-top: 30px;
+    margin-bottom: 30px
+}
+
+.subscriptions-wrapper {
+    grid-area: posts;
+    font-size: 10pt;
+    font-weight: 300;
+}
+
+.subscriptions-wrapper ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.subscriptions-wrapper li {
+    min-width: 100px;
+    height: 25px;
+    background: #fdfdfd;
+    box-shadow: 0px 15px 40px rgba(0, 0, 0, 0.1);
+    margin: 10px 0 0 0;
+    padding: 8px;
+}
+
+.new-tag-card {
+    background: #fdfdfd;
+    height: 40px;
+    justify-self: stretch;
+    align-items: center;
+    margin: 15px 0 0 0;
+    padding: 5px 0 0 0;
+}
+
+.new-tag-card input {
+    border: none;
+    padding: 8px;
+    margin: 0 10px 0 5px;
+    min-width: 150px;
+}
+
+.new-tag-card button {
+    background: #1F9FBB;
+    color: #fdfdfd;
+    border: none;
+    height: 80%;
+    width: 100px;
+}
+
+.subscriptions-wrapper p {
+    width: fit-content;
+    padding: 0;
+    margin: 0;
+}
+
+#posts {
+    display: grid;
+    grid-template-columns: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.post {
+    width: 100%;
+    background: #fdfdfd;
+    box-shadow: 0px 15px 40px rgba(0, 0, 0, 0.1);
+    margin: 10px 0 0 0;
+    padding: 5px 5px 5px 10px;
+}
+
+.post h1 {
+    font-weight: 300;
+    font-size: 13pt;
+    width: 90%;
+    align-self: center;
+}
+
+.post h2 {
+    font-weight: 200;
+    font-size: 7pt;
+    width: 90%;
+    align-self: center;
+}
+
+.post p {
+    font-weight: 200;
+    font-size: 10pt;
+    width: 90%;
+    align-self: center;
+}
+
+.post h6 {
+    font-weight: 300;
+    font-size: 7pt;
+    width: 90%;
+    align-self: center;
+    color: #1F9FBB;
+}
+
+body {
+    background: #E5E5E5;
+    margin: 0px;
+    font-family: 'Roboto', sans-serif;
+}
+
+ul {
+    list-style: none;
+}
