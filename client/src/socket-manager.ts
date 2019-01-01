@@ -5,6 +5,7 @@ import { IPost, IServerMessage } from "./model";
 export interface ILoginParams {
     hostname: string;
     port: number;
+    username: string;
 }
 
 export class SocketManager {
@@ -27,9 +28,17 @@ export class SocketManager {
             this.socket.on("close", () => { this.connected = false; });
             this.connected = true;
         } catch (error) {
-            // tslint:disable-next-line:no-console
-            console.log("Could not connect to the server");
+            this.window.webContents.send("login-falied", "Could not connect to the server");
         }
+    }
+
+    public login(username: string) {
+        const message = {
+            author: username,
+            type: 0,
+        } as IServerMessage;
+        this.username = username;
+        this.sendMessage(message);
     }
 
     public isConnected() {
@@ -40,7 +49,7 @@ export class SocketManager {
         this.window = window;
     }
 
-    public subscribeTag(tag: string): any {
+    public subscribeTag(tag: string) {
         const message = {
             content: tag,
             type: 20,
@@ -49,8 +58,32 @@ export class SocketManager {
         this.sendMessage(message);
     }
 
+    public unsubscribeTag(tag: string) {
+        const message = {
+            content: tag,
+            type: 30,
+            userID: this.userID,
+        } as IServerMessage;
+        this.sendMessage(message);
+    }
+
     public sendMessage(message: IServerMessage) {
-        this.socket.write(JSON.stringify(message) + "\n");
+        let messageStr = `{"type": ${message.type},`;
+        if (message.userID === undefined) {
+            if (this.userID === undefined) {
+                message.userID = -1;
+            } else {
+                message.userID = this.userID;
+            }
+        }
+        messageStr += `"userID": ${message.userID},\
+        "title": "${message.title}",\
+        "author": "${message.author}",\
+        "content": "${message.content}",\
+        "tags": "${message.tags}"}\n`;
+        // tslint:disable-next-line:no-console
+        console.log(messageStr);
+        this.socket.write(messageStr);
     }
 
     private processMessage(data: string) {
@@ -58,13 +91,46 @@ export class SocketManager {
         this.message += data;
         const msg = JSON.parse(this.message) as IServerMessage;
         this.message = "";
-        if (msg.type === 10) {
-            this.addPost({
-                author: msg.author,
-                content: msg.content,
-                tags: msg.tags,
-                title: msg.title,
-            } as IPost);
+        switch (msg.type) {
+            case 10: {
+                this.addPost({
+                    author: msg.author,
+                    content: msg.content,
+                    tags: msg.tags,
+                    title: msg.title,
+                } as IPost);
+                break;
+            }
+            case 1: {
+                this.userID = msg.userID;
+                this.window.webContents.send("login-successful", this.username);
+                break;
+            }
+            case 2: {
+                this.username = "";
+                this.window.webContents.send("login-failed", "Cannot log in on the server");
+                break;
+            }
+            case 21: {
+                this.window.webContents.send("subscribe-succesful", msg.content);
+                break;
+            }
+            case 22 || 23: {
+                this.window.webContents.send("subscribe-failed", msg.content);
+                break;
+            }
+            case 31: {
+                this.window.webContents.send("unsubscribe-success", msg.content);
+                break;
+            }
+            case 32 || 33: {
+                this.window.webContents.send("unsubscribe-failed", msg.content);
+                break;
+            }
+            default:
+                // tslint:disable-next-line:no-console
+                console.log(JSON.stringify(msg));
+                break;
         }
     }
 

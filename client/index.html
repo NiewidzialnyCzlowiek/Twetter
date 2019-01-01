@@ -14,8 +14,9 @@
           <h1>Twatter</h1>
       </div>
       <div class="login-card">
-          <input id="hostname-input" type="text">
-          <input id="port-input">
+          <input id="hostname-input" type="text" placeholder="Hostname">
+          <input id="port-input" placeholder="Port">
+          <input id="username-input" type="text" placeholder="Username">
         <button id="login-submit-button">Connect</button>
         <p id="login-status"></p>
       </div>
@@ -55,8 +56,10 @@
         </div>
 
         <div class="subscriptions-wrapper">
-          <ul id="tags">
-          </ul>
+          <div class="tags-list">
+            <ul id="tags">
+            </ul>
+          </div>
           <div class="new-tag-card">
             <input id="tag-input" placeholder="Tag">
             <button id="add-tag-button">Add Tag</button>

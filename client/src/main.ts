@@ -19,7 +19,7 @@ function createWindow() {
   // Open the DevTools.
   // mainWindow.webContents.openDevTools();
   mainWindow.webContents.on("did-finish-load", () => {
-    const connected = socketManager ? socketManager.isConnected() : false;
+    const connected = socketManager === undefined ? false : socketManager.isConnected();
     if (connected) {
       socketManager.setWindow(mainWindow);
       mainWindow.webContents.send("init", connected, socketManager.posts, socketManager.tags);
@@ -62,9 +62,9 @@ app.on("activate", () => {
 ipcMain.on("login-submit", (event: any, params: ILoginParams) => {
   socketManager = new SocketManager(params.hostname, params.port, mainWindow);
   if (socketManager.isConnected()) {
-    event.sender.send("login-successful");
+    socketManager.login(params.username);
   } else {
-    event.sender.send("login-failed");
+    event.sender.send("login-failed", "Cannot connect to the server");
   }
 });
 
@@ -77,13 +77,19 @@ ipcMain.on("post", (event: any, post: IPost) => {
   socketManager.sendMessage({
     author: post.author,
     content: post.content,
-    tags: post.content,
+    tags: post.tags,
     title: post.title,
+    type: 10,
+    userID: socketManager.userID,
   } as IServerMessage);
   mainWindow.webContents.send("new-post", post);
 });
 
 ipcMain.on("subscribe", (event: any, tag: string) => {
   socketManager.subscribeTag(tag);
-  mainWindow.webContents.send("new-tag", tag);
+  // mainWindow.webContents.send("new-tag", tag);
+});
+
+ipcMain.on("unsubscribe", (event: any, tag: string) => {
+  socketManager.unsubscribeTag(tag);
 });

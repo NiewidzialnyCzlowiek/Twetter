@@ -6,27 +6,44 @@ import * as $ from "jquery";
 import { IPost } from "./model";
 import { ILoginParams } from "./socket-manager";
 
+
 $("#login-submit-button").click(() => {
+    const defaultHostname = "localhost";
+    const defaultPort = 1234;
+    const defaultUsername = "anon" + (Math.floor(Math.random() * (9000 - 1000 + 1)) + 1000).toString();
     const params = {
         hostname: $("#hostname-input").val() as string,
         port: $("#port-input").val() as number,
+        username: $("#username-input").val(),
     } as ILoginParams;
+    if (params.hostname === "" || params.hostname === undefined) {
+        params.hostname = defaultHostname;
+    }
+    if (params.port.toString() === "" || params.port === undefined) {
+        params.port = defaultPort;
+    }
+    if (params.username === "" || params.username === undefined) {
+        params.username = defaultUsername;
+    }
     ipcRenderer.send("login-submit", params);
 });
 
 $("#add-post-button").click(() => {
     const post = {
-        author: "",
         content: $("#content-input").val(),
         tags: $("#tags-input").val(),
         title: $("#title-input").val(),
     } as IPost;
+    $("#content-input").val("");
+    $("#tags-input").val("");
+    $("#title-input").val("");
     ipcRenderer.send("post", post);
 });
 
 $("#add-tag-button").click(() => {
     const tag = $("#tag-input").val();
     if (tag !== "") {
+        $("#tag-input").val("");
         ipcRenderer.send("subscribe", tag);
     }
 });
@@ -57,21 +74,27 @@ ipcRenderer.on("init", (event: any, connected: boolean, posts: IPost[], tags: st
     }
 });
 
-ipcRenderer.on("login-successful", (event: any) => {
-    $("#login-status").val("Success!");
+ipcRenderer.on("login-successful", (event: any, username: string) => {
+    $("#login-status").text("");
+    $("head").children("title").remove();
+    $("head").append(`<title>${username}</title>`);
     mainPage();
 });
 
-ipcRenderer.on("login-failed", (event: any) => {
-    $("#login-status").val("Couldn't connect to the host");
+ipcRenderer.on("login-failed", (event: any, errorMessage: string) => {
+    $("#login-status").text(errorMessage);
 });
 
 ipcRenderer.on("new-post", (event: any, post: IPost) => {
     addPostToView(post);
 });
 
-ipcRenderer.on("new-tag", (event: any, tag: string) => {
+ipcRenderer.on("subscribe-succesful", (event: any, tag: string) => {
     addTagToView(tag);
+});
+
+ipcRenderer.on("unsubscribe-success", (event: any, tag: string) => {
+    $(`#${tag}-li`).remove();
 });
 
 function addPostToView(post: IPost) {
@@ -84,9 +107,13 @@ function addPostToView(post: IPost) {
 }
 
 function addTagToView(tag: string) {
-    $("#tags").prepend(`<li>\
+    $("#tags").prepend(`<li id="${tag}-li">\
     <p>${tag}</p>\
+    <button id="unsubscribe-${tag}-button">Unsub</button>
     </li>`);
+    $(`#unsubscribe-${tag}-button`).click(() => {
+        ipcRenderer.send("unsubscribe", tag);
+    });
 }
 
 function loginPage() {
