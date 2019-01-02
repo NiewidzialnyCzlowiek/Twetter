@@ -1,14 +1,43 @@
 {
-  "name": "electron-quick-start-typescript",
+  "name": "twatter",
   "version": "1.0.0",
-  "description": "A minimal Electron application written with Typescript",
+  "description": "Client for the pubsub app",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
     "lint": "tslint -c tslint.json -p tsconfig.json",
-    "start": "npm run build && electron ./dist/main.js"
+    "start": "npm run build && electron ./dist/main.js",
+    "dist": "build",
+    "dist-all": "electron-builder -mwl"
   },
-  "repository": "https://github.com/electron/electron-quick-start-typescript",
+  "main": "dist/main.js",
+  "build": {
+    "appId": "twatter",
+    "files": [
+      "dist/*.js",
+      "resources/**",
+      "styles/**",
+      "*.html"
+    ],
+    "mac": {
+      "category": "social.media"
+    },
+    "dmg": {
+      "icon": "resources/logo-small.svg"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ]
+    },
+    "win": {
+      "target": "NSIS",
+      "icon": "resources/logo-small.svg"
+    }
+  },
+  "repository": "https://github.com/NiewidzialnyCzlowiek/pubsub-webapp",
   "keywords": [
     "Electron",
     "quick",
@@ -17,13 +46,17 @@
     "demo",
     "typescript"
   ],
-  "author": "GitHub",
-  "license": "CC0-1.0",
-  "devDependencies": {
-    "electron": "^2.0.8",
-    "tslint": "^5.10.0",
-    "typescript": "^2.8.3",
+  "author": "Bartłomiej Szal & Piotr Hełminiak",
+  "license": "MIT",
+  "dependencies": {
     "jquery": "^3.3.1",
-    "@types/jquery": "^3.3.27"
+    "net": "^1.0.2"
+  },
+  "devDependencies": {
+    "@types/jquery": "^3.3.27",
+    "electron": "^2.0.8",
+    "electron-builder": "^20.38.4",
+    "tslint": "^5.10.0",
+    "typescript": "^2.8.3"
   }
 }
