@@ -1,2 +1,2 @@
-# Desktop client for Twatter
-The Twatter client provides an intuitive interface for the app. Upon openning the user is prompted to provide the hostname and the port to which the app should connect. After the connection has been established, the clean and simple dashborad is shown. It allows the user to browse the posts, write new ones and manage subscriptions.
+# Desktop client for Twetter
+The Twetter client provides an intuitive interface for the app. Upon openning the user is prompted to provide the hostname and the port to which the app should connect. After the connection has been established, the clean and simple dashborad is shown. It allows the user to browse the posts, write new ones and manage subscriptions.

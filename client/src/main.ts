@@ -24,7 +24,7 @@ function createWindow() {
       socketManager.setWindow(mainWindow);
       mainWindow.webContents.send("init", connected, socketManager.posts, socketManager.tags, socketManager.username);
     }
-    mainWindow.webContents.send("init", connected, [], [], "Twatter");
+    mainWindow.webContents.send("init", connected, [], [], "Twetter");
   });
   // Emitted when the window is closed.
   mainWindow.on("closed", () => {

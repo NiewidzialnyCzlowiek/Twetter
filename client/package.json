@@ -1,5 +1,5 @@
 {
-  "name": "twatter",
+  "name": "twetter",
   "version": "1.0.0",
   "description": "Client for the pubsub app",
   "scripts": {
@@ -12,7 +12,7 @@
   },
   "main": "dist/main.js",
   "build": {
-    "appId": "twatter",
+    "appId": "twetter",
     "files": [
       "dist/*.js",
       "resources/**",
