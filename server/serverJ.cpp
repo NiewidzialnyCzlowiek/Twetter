@@ -419,8 +419,13 @@ int main(int argc, char* argv[]) {
     memset(&server_address, 0, sizeof(struct sockaddr));
     server_address.sin_family = AF_INET;
     server_address.sin_addr.s_addr = htonl(INADDR_ANY);
-    std::cout << "port: " << atoi(argv[1]) << '\n';    
-    server_address.sin_port = htons(atoi(argv[1]));
+    if(argv[1] != nullptr) {
+        std::cout << "port: " << atoi(argv[1]) << '\n';    
+        server_address.sin_port = htons(atoi(argv[1]));
+    } else {
+        std::cout << "port: " << SERVER_PORT << '\n';    
+        server_address.sin_port = htons(SERVER_PORT);
+    }
     if (bind(serverSocketDescriptor, (struct sockaddr*)&server_address, sizeof(struct sockaddr)) < 0) {
         fprintf(stderr, "%s: Error encountered binding address and port to socket\n", argv[0]);
         exit(1);
