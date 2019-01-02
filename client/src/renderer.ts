@@ -124,9 +124,6 @@ function loginPage() {
 function mainPage() {
     hideElement(".login-wrapper");
     showElement(".main-page-wrapper");
-    $("#feed-button").addClass("page-indicator");
-    $("#write-button").removeClass("page-indicator");
-    $("#subscribe-button").removeClass("page-indicator");
     feedView();
 }
 
@@ -134,18 +131,27 @@ function feedView() {
     hideElement(".write-post-wrapper");
     hideElement(".subscriptions-wrapper");
     showElement(".posts-wrapper");
+    $("#feed-button").addClass("page-indicator");
+    $("#write-button").removeClass("page-indicator");
+    $("#subscribe-button").removeClass("page-indicator");
 }
 
 function writePostView() {
     hideElement(".subscriptions-wrapper");
     hideElement(".posts-wrapper");
     showElement(".write-post-wrapper");
+    $("#feed-button").removeClass("page-indicator");
+    $("#write-button").addClass("page-indicator");
+    $("#subscribe-button").removeClass("page-indicator");
 }
 
 function subscriptionsView() {
     hideElement(".posts-wrapper");
     hideElement(".write-post-wrapper");
     showElement(".subscriptions-wrapper");
+    $("#feed-button").removeClass("page-indicator");
+    $("#write-button").removeClass("page-indicator");
+    $("#subscribe-button").addClass("page-indicator");
 }
 
 function showElement(selector: string) {

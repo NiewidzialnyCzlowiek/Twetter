@@ -161,7 +161,9 @@
     font-weight: 300;
     background: #1F9FBB;
     text-align: center;
-    border: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
     height: 40px;
     width: 110px;
 }
@@ -171,7 +173,7 @@
 }
 
 .navbar-wrapper button:hover {
-    background: #198299
+    background: #198299;
 }
 
 .posts-wrapper {
@@ -203,6 +205,7 @@
     align-self: center;
     border: none;
     border-left: #E5E5E5;
+    width: 90%;
 }
 
 .write-post-card textarea {
@@ -213,6 +216,7 @@
     height: 200px;
     font-size: 10pt;
     padding: 8px;
+    width: 90%;
 }
 
 .write-post-card button {
@@ -283,8 +287,11 @@
     background: #1F9FBB;
     color: #fdfdfd;
     border: none;
-    height: 80%;
+    height: 60%;
+    margin: 5px 0 0 0;
     width: 100px;
+    font-size: 11pt;
+    align-self: center;
 }
 
 .subscriptions-wrapper p {
