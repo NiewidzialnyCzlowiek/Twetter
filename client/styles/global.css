@@ -269,7 +269,7 @@
 
 .new-tag-card {
     background: #fdfdfd;
-    height: 40px;
+    min-height: 40px;
     justify-self: stretch;
     align-items: center;
     margin: 15px 0 0 0;
@@ -292,6 +292,13 @@
     width: 100px;
     font-size: 11pt;
     align-self: center;
+}
+
+#subscribe-status {
+    color: red;
+    font-size: 10pt;
+    font-weight: 300;
+    margin: 8px;
 }
 
 .subscriptions-wrapper p {

@@ -60,7 +60,7 @@ $("#subscribe-button").click(() => {
     subscriptionsView();
 });
 
-ipcRenderer.on("init", (event: any, connected: boolean, posts: IPost[], tags: string[]) => {
+ipcRenderer.on("init", (event: any, connected: boolean, posts: IPost[], tags: string[], username: string) => {
     if (connected) {
         mainPage();
         posts.forEach((post) => {
@@ -72,6 +72,8 @@ ipcRenderer.on("init", (event: any, connected: boolean, posts: IPost[], tags: st
     } else {
         loginPage();
     }
+    $("head").children("title").remove();
+    $("head").append(`<title>${username}</title>`);
 });
 
 ipcRenderer.on("login-successful", (event: any, username: string) => {
@@ -91,10 +93,20 @@ ipcRenderer.on("new-post", (event: any, post: IPost) => {
 
 ipcRenderer.on("subscribe-succesful", (event: any, tag: string) => {
     addTagToView(tag);
+    $("#subscribe-status").text("");
+});
+
+ipcRenderer.on("subscribe-failed", (event: any, tag: string) => {
+    $("#subscribe-status").text(`Cannot subscribe ${tag} - user doesn't exist or already subscribed`);
 });
 
 ipcRenderer.on("unsubscribe-success", (event: any, tag: string) => {
     $(`#${tag}-li`).remove();
+    $("#subscribe-status").text("");
+});
+
+ipcRenderer.on("unsuscribe-failed", (event: any, tag: string) => {
+    $("#subscribe-status").text(`Cannot unsubscribe ${tag} - subscription doesn't exist`);
 });
 
 function addPostToView(post: IPost) {

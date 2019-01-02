@@ -22,9 +22,9 @@ function createWindow() {
     const connected = socketManager === undefined ? false : socketManager.isConnected();
     if (connected) {
       socketManager.setWindow(mainWindow);
-      mainWindow.webContents.send("init", connected, socketManager.posts, socketManager.tags);
+      mainWindow.webContents.send("init", connected, socketManager.posts, socketManager.tags, socketManager.username);
     }
-    mainWindow.webContents.send("init", connected, [], []);
+    mainWindow.webContents.send("init", connected, [], [], "Twatter");
   });
   // Emitted when the window is closed.
   mainWindow.on("closed", () => {
