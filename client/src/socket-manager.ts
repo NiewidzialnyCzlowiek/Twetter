@@ -51,6 +51,7 @@ export class SocketManager {
 
     public subscribeTag(tag: string) {
         const message = {
+            author: this.username,
             content: tag,
             type: 20,
             userID: this.userID,
@@ -81,8 +82,6 @@ export class SocketManager {
         "author": "${message.author}",\
         "content": "${message.content}",\
         "tags": "${message.tags}"}\n`;
-        // tslint:disable-next-line:no-console
-        console.log(messageStr);
         this.socket.write(messageStr);
     }
 
@@ -128,8 +127,6 @@ export class SocketManager {
                 break;
             }
             default:
-                // tslint:disable-next-line:no-console
-                console.log(JSON.stringify(msg));
                 break;
         }
     }

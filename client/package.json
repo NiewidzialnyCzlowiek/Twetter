@@ -8,6 +8,8 @@
     "lint": "tslint -c tslint.json -p tsconfig.json",
     "start": "npm run build && electron ./dist/main.js",
     "dist": "build",
+    "dist-linux32": "electron-builder --linux --ia32",
+    "dist-linux": "electron-builder --linux",
     "dist-all": "electron-builder -mwl"
   },
   "main": "dist/main.js",
@@ -27,10 +29,9 @@
     },
     "linux": {
       "target": [
-        "AppImage",
-        "deb",
-        "rpm"
-      ]
+        "AppImage"
+      ],
+      "maintainer": "bartlomiej.szal@gmail.com"
     },
     "win": {
       "target": "NSIS",

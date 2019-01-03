@@ -68,9 +68,6 @@ ipcMain.on("login-submit", (event: any, params: ILoginParams) => {
   }
 });
 
-// ipcMain.on("send-message", (event: any, message: string) => {
-//   socketManager.sendMessage(message);
-// });
 
 ipcMain.on("post", (event: any, post: IPost) => {
   post.author = socketManager.username;
@@ -87,7 +84,6 @@ ipcMain.on("post", (event: any, post: IPost) => {
 
 ipcMain.on("subscribe", (event: any, tag: string) => {
   socketManager.subscribeTag(tag);
-  // mainWindow.webContents.send("new-tag", tag);
 });
 
 ipcMain.on("unsubscribe", (event: any, tag: string) => {
