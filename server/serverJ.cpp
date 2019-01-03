@@ -15,9 +15,6 @@
 #include <signal.h>
 #include <arpa/inet.h>
 #include "json.hpp"
-//#include <sys/wait.h>
-//#include <netinet/in.h>
-//#include <time.h>
 
 using std::string;
 using json = nlohmann::json;
@@ -41,7 +38,7 @@ typedef struct userData
     bool free = true;
     int socketDescriptor;   // -1 means offline
     char username[USERNAME_SIZE];
-    bool subscribedUsers[MAX_CLIENTS]; // indexes (in: userData users) of subscribed clients
+    bool subscribedUsers[MAX_CLIENTS]; // true in indexes corresponding to subscribed userID (userID = user index in users array).
 } userData;
 
 //struktura zawierająca dane, które zostaną przekazane do wątku
@@ -53,21 +50,6 @@ typedef struct threadData
 } threadData;
 
 //struktura wiadomosci
-/* type of message (user message, system message)
-    0 - user authentication initialization from client
-    1 - user authentication response to client (success, send userID and subscribed users)
-    2 - user already logged in
-    100  - client disconnect notification
-    10 - user text message
-    20 - request subscribe
-    21 - response subscribe success
-    22 - response subscribe fail
-    23 - response subscribe (himself) fail
-    30 - request unsubscribe
-    31 - response unsubscribe success
-    32 - response unsubscribe fail
-    33 - response unsubscribe (himself) fail
-*/
 typedef struct message
 {
     int type;
@@ -141,16 +123,6 @@ void getSubscribedUsers(char* usersList, userData *users, int userID) {
     printf("Users subscribed by %d: (new line)\n%s end of list\n", userID, usersList);
 }
 
-/*typedef struct message
-{
-    int type;
-    int userID;
-    char title[TITLE_SIZE];
-    char username[USERNAME_SIZE];  // author
-    char msg[MESSAGE_SIZE]; // content
-    char tags[TAGS_SIZE];
-} message;*/
-
 json convertMsgToJson(message *msg) {
     json j;
     j["type"] = msg->type;
@@ -165,27 +137,29 @@ json convertMsgToJson(message *msg) {
 void convertJsonToMsg(json j, message *msg) {
     j.at("type").get_to(msg->type);
     j.at("userID").get_to(msg->userID);
-    
     std::string str;
     const char *cstr;
-
     j.at("title").get_to(str);
     cstr = str.c_str();
     strcpy(msg->title, cstr);
-    
-
     j.at("author").get_to(str);
     cstr = str.c_str();
     strcpy(msg->username, cstr);
-    
-
     j.at("content").get_to(str);
     cstr = str.c_str();
     strcpy(msg->msg, cstr);  
-
     j.at("tags").get_to(str);
     cstr = str.c_str();
     strcpy(msg->tags, cstr);  
+}
+
+// from input message generates JSON formatted string to be sent to client
+char *prepareAnswer(message *msg, char toSend[JSON_SIZE]) {
+    json jResponse = convertMsgToJson(msg);
+    std::string strToSend = jResponse.dump();
+    memset(toSend, 0, JSON_SIZE);                
+    strcpy(toSend, strToSend.c_str());
+    return toSend;
 }
 
 //funkcja opisującą zachowanie wątku - musi przyjmować argument typu (void *) i zwracać (void *)
@@ -202,6 +176,7 @@ void *ThreadBehavior(void *voidThreadData)
     int userID = -1;
     char username[USERNAME_SIZE];
     bool run = true;
+    char toSend[JSON_SIZE];
     while(run)
     {
         std::cout<< pthread_self() << ": waiting for data (read)\n";
@@ -237,12 +212,7 @@ void *ThreadBehavior(void *voidThreadData)
                     userID = -1;
                     std::cout <<  pthread_self() << ": user " << msg.username << " already logged in.\n";
                     msg.type = 2;
-                    json jResponse = convertMsgToJson(&msg);
-                    std::string strToSend = jResponse.dump();
-                    char toSend[JSON_SIZE];
-                    memset(toSend, 0, JSON_SIZE);                
-                    strcpy(toSend, strToSend.c_str());
-                    write(clientSocket, toSend, JSON_SIZE);
+                    write(clientSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
                 }
                 else {
                     std::cout << pthread_self() << ": Authentication success, userID: " << userID << ", username: " << msg.username << std::endl;
@@ -253,12 +223,7 @@ void *ThreadBehavior(void *voidThreadData)
                     pthread_mutex_lock(&mutexUsers);
                     getSubscribedUsers(msg.msg, threadData->users, userID);
                     pthread_mutex_unlock(&mutexUsers);
-                    json jResponse = convertMsgToJson(&msg);
-                    std::string strToSend = jResponse.dump();
-                    char toSend[JSON_SIZE];
-                    memset(toSend, 0, JSON_SIZE);                
-                    strcpy(toSend, strToSend.c_str());
-                    write(clientSocket, toSend, JSON_SIZE);
+                    write(clientSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
                 }
             }
             else {
@@ -276,24 +241,9 @@ void *ThreadBehavior(void *voidThreadData)
                     int destinationSocket = threadData->users[i].socketDescriptor;
                     if(destinationSocket > 2 && destinationSocket != clientSocket) {
                         if(threadData->users[i].subscribedUsers[userID] == true) {
-                            json jResponse = convertMsgToJson(&msg);
-                            std::string strToSend = jResponse.dump();
-                            char toSend[JSON_SIZE];
-                            memset(toSend, 0, JSON_SIZE);                
-                            strcpy(toSend, strToSend.c_str());
-                            int sent = write(destinationSocket, toSend, JSON_SIZE);
+                            int sent = write(destinationSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
                             printf("%lu: wyslano type: %d, %d Bajtow\n", pthread_self(), msg.type, sent);
-                        }/*
-                        else {
-                            //Send to unsubscribed
-                            message msg2;
-                            msg2.type = 11;
-                            msg2.userID = msg.userID;
-                            strcpy(msg2.username, msg.username);
-                            strcpy(msg2.msg, msg.msg);
-                            int sent = write(destinationSocket, &msg2, sizeof(struct message));
-                            printf("%lu: wyslano type: %d, %d Bajtow\n", pthread_self(), msg.type, sent);
-                        }*/
+                        }
                     }
                 }
                 pthread_mutex_unlock(&mutexUsers);
@@ -304,12 +254,7 @@ void *ThreadBehavior(void *voidThreadData)
             if(strcmp(msg.msg, username) == 0) {
                 printf("%lu: user %s tried to subscribe himself, deny.\n", pthread_self(), msg.username);
                 msg.type = 23;
-                json jResponse = convertMsgToJson(&msg);
-                std::string strToSend = jResponse.dump();
-                char toSend[JSON_SIZE];
-                memset(toSend, 0, JSON_SIZE);                
-                strcpy(toSend, strToSend.c_str());
-                write(clientSocket, toSend, JSON_SIZE);
+                write(clientSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
             }
             else {
                 pthread_mutex_lock(&mutexUsers);
@@ -318,22 +263,12 @@ void *ThreadBehavior(void *voidThreadData)
                 if(status == 0) {
                     printf("%lu: user %s subscribed user %s\n", pthread_self(), msg.username, msg.msg);
                     msg.type = 21;
-                    json jResponse = convertMsgToJson(&msg);
-                    std::string strToSend = jResponse.dump();
-                    char toSend[JSON_SIZE];
-                    memset(toSend, 0, JSON_SIZE);                
-                    strcpy(toSend, strToSend.c_str());
-                    write(clientSocket, toSend, JSON_SIZE);
+                    write(clientSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
                 }
                 else {
                     printf("%lu: user %s failed to subscribe user %s, error code: %d\n", pthread_self(), msg.username, msg.msg, status);
                     msg.type = 22;
-                    json jResponse = convertMsgToJson(&msg);
-                    std::string strToSend = jResponse.dump();
-                    char toSend[JSON_SIZE];
-                    memset(toSend, 0, JSON_SIZE);                
-                    strcpy(toSend, strToSend.c_str());
-                    write(clientSocket, toSend, JSON_SIZE);
+                    write(clientSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
                 }
             }
         }
@@ -342,12 +277,7 @@ void *ThreadBehavior(void *voidThreadData)
             if(strcmp(msg.msg, username) == 0) {
                 printf("%lu: user %s tried to unsubscribe himself, deny.\n", pthread_self(), msg.username);
                 msg.type = 33;
-                json jResponse = convertMsgToJson(&msg);
-                std::string strToSend = jResponse.dump();
-                char toSend[JSON_SIZE];
-                memset(toSend, 0, JSON_SIZE);                
-                strcpy(toSend, strToSend.c_str());
-                write(clientSocket, toSend, JSON_SIZE);
+                write(clientSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
             }
             else {
                 pthread_mutex_lock(&mutexUsers);
@@ -356,22 +286,12 @@ void *ThreadBehavior(void *voidThreadData)
                 if(status == 0) {
                     printf("%lu: user %s unsubscribed user %s\n", pthread_self(), msg.username, msg.msg);
                     msg.type = 31;
-                    json jResponse = convertMsgToJson(&msg);
-                    std::string strToSend = jResponse.dump();
-                    char toSend[JSON_SIZE];
-                    memset(toSend, 0, JSON_SIZE);                
-                    strcpy(toSend, strToSend.c_str());
-                    write(clientSocket, toSend, JSON_SIZE);
+                    write(clientSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
                 }
                 else {
                     printf("%lu: user %s failed to unsubscribe user %s, error code: %d\n", pthread_self(), msg.username, msg.msg, status);
                     msg.type = 32;
-                    json jResponse = convertMsgToJson(&msg);
-                    std::string strToSend = jResponse.dump();
-                    char toSend[JSON_SIZE];
-                    memset(toSend, 0, JSON_SIZE);                
-                    strcpy(toSend, strToSend.c_str());
-                    write(clientSocket, toSend, JSON_SIZE);
+                    write(clientSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
                 }
             }
         }
@@ -418,7 +338,7 @@ int main(int argc, char* argv[]) {
     struct sockaddr_in server_address;
     memset(&server_address, 0, sizeof(struct sockaddr));
     server_address.sin_family = AF_INET;
-    server_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    server_address.sin_addr.s_addr = htonl(INADDR_ANY); 
     if(argv[1] != nullptr) {
         std::cout << "port: " << atoi(argv[1]) << '\n';    
         server_address.sin_port = htons(atoi(argv[1]));
@@ -453,10 +373,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Server successfully started." << '\n';
     //START    
     while(run) {
-        //struct sockaddr_in newClient;  //connected client data
-        //socklen_t newClientSize = sizeof(newClient);
         std::cout<<"Server: Waiting for connection request...\n";
-        //int connectionSocketDescriptor = accept(serverSocketDescriptor, (struct sockaddr *) &newClient, &newClientSize);
         int connectionSocketDescriptor = accept(serverSocketDescriptor, NULL, NULL);        
         if (connectionSocketDescriptor < 0) {
             fprintf(stderr, "Server: Error encountered accepting connection\n");
