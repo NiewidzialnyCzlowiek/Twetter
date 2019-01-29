@@ -1,6 +1,6 @@
 {
   "name": "twetter",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "Client for the pubsub app",
   "scripts": {
     "build": "tsc",
