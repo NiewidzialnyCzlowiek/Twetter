@@ -24,8 +24,10 @@ export class SocketManager {
         this.tags = [];
         try {
             this.socket = connect(port, hostname);
-            this.socket.on("data", (data) => this.processMessage(data.toString()));
+            this.socket.on("data", (data) => this.processMessage(data));
             this.socket.on("close", () => { this.connected = false; });
+            // tslint:disable-next-line:no-console
+            this.socket.on("error", (err) => { console.log(err.message); });
             this.connected = true;
         } catch (error) {
             this.window.webContents.send("login-falied", "Could not connect to the server");
@@ -82,52 +84,69 @@ export class SocketManager {
         "author": "${message.author}",\
         "content": "${message.content}",\
         "tags": "${message.tags}"}\n`;
+        messageStr = `#${messageStr.length.toString()}#` + messageStr;
         this.socket.write(messageStr);
     }
 
-    private processMessage(data: string) {
-        data = data.replace(/\0/g, "");
-        this.message += data;
-        const msg = JSON.parse(this.message) as IServerMessage;
-        this.message = "";
-        switch (msg.type) {
-            case 10: {
-                this.addPost({
-                    author: msg.author,
-                    content: msg.content,
-                    tags: msg.tags,
-                    title: msg.title,
-                } as IPost);
-                break;
+    private getMessageLength(data: Buffer): number {
+        let dataStr = data.toString();
+        dataStr = dataStr.substring(1, dataStr.indexOf("#", 1));
+        return +dataStr;
+    }
+
+    private getMessageContents(data: Buffer) {
+        let msg = data.toString().replace(/\0/g, "");
+        if (msg.indexOf("#", 1) > 0) {
+            msg = msg.substr(msg.indexOf("#", 1) + 1);
+        }
+        return msg;
+    }
+
+    private processMessage(data: Buffer) {
+        const length = this.getMessageLength(data);
+        this.message += this.getMessageContents(data);
+        if (this.message.length >= length) {
+            const msg = JSON.parse(this.message) as IServerMessage;
+            this.message = "";
+            switch (msg.type) {
+                case 10: {
+                    this.addPost({
+                        author: msg.author,
+                        content: msg.content,
+                        tags: msg.tags,
+                        title: msg.title,
+                    } as IPost);
+                    break;
+                }
+                case 1: {
+                    this.userID = msg.userID;
+                    this.window.webContents.send("login-successful", this.username);
+                    break;
+                }
+                case 2: {
+                    this.username = "";
+                    this.window.webContents.send("login-failed", "Cannot log in on the server");
+                    break;
+                }
+                case 21: {
+                    this.window.webContents.send("subscribe-succesful", msg.content);
+                    break;
+                }
+                case 22 || 23: {
+                    this.window.webContents.send("subscribe-failed", msg.content);
+                    break;
+                }
+                case 31: {
+                    this.window.webContents.send("unsubscribe-success", msg.content);
+                    break;
+                }
+                case 32 || 33: {
+                    this.window.webContents.send("unsubscribe-failed", msg.content);
+                    break;
+                }
+                default:
+                    break;
             }
-            case 1: {
-                this.userID = msg.userID;
-                this.window.webContents.send("login-successful", this.username);
-                break;
-            }
-            case 2: {
-                this.username = "";
-                this.window.webContents.send("login-failed", "Cannot log in on the server");
-                break;
-            }
-            case 21: {
-                this.window.webContents.send("subscribe-succesful", msg.content);
-                break;
-            }
-            case 22 || 23: {
-                this.window.webContents.send("subscribe-failed", msg.content);
-                break;
-            }
-            case 31: {
-                this.window.webContents.send("unsubscribe-success", msg.content);
-                break;
-            }
-            case 32 || 33: {
-                this.window.webContents.send("unsubscribe-failed", msg.content);
-                break;
-            }
-            default:
-                break;
         }
     }
 
