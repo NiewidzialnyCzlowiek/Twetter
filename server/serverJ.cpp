@@ -28,8 +28,9 @@ using json = nlohmann::json;
 const int MAX_CLIENTS = 10;
 const char REUSE_ADDR_VAL = 1;
 
-pthread_mutex_t mutexConnectionSocketDescriptors = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutexUsers = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexConnectionSocketDescriptors[MAX_CLIENTS] = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexUsers[MAX_CLIENTS] = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexUsersWrite[MAX_CLIENTS] = PTHREAD_MUTEX_INITIALIZER;
 
 //struktura zawierająca dane, które zostaną przekazane do wątku
 typedef struct userData
@@ -62,63 +63,92 @@ typedef struct message
 //associate user with socket, returns index of user associated with calling socket thread
 int authenticateUser(int socketDescriptor, userData *users, char username[USERNAME_SIZE]) {
     for(int i = 0; i < MAX_CLIENTS; i++) {
+        pthread_mutex_lock(&mutexUsers[i]);
         if(!(users[i].free) && strcmp(users[i].username, username) == 0) {
             if(users[i].socketDescriptor == -1) {
                 users[i].socketDescriptor = socketDescriptor;
+                pthread_mutex_unlock(&mutexUsers[i]);
                 return i;
             }
+            pthread_mutex_unlock(&mutexUsers[i]);
             return -2;  //user already logged in
         }
+        pthread_mutex_unlock(&mutexUsers[i]);
     }
     //create new user
     for(int i = 0; i < MAX_CLIENTS; i++) {
+        pthread_mutex_lock(&mutexUsers[i]);
         if(users[i].free) {
             users[i].free = false;
             strcpy(users[i].username, username);
             users[i].socketDescriptor = socketDescriptor;
+            pthread_mutex_unlock(&mutexUsers[i]);
             return i;
         }
+        pthread_mutex_unlock(&mutexUsers[i]);
     }
     return -1;
 }
 
 int subscribeUser(userData *users, int requestingUserID, char subscribedUsername[USERNAME_SIZE]) {
     for(int i = 0; i < MAX_CLIENTS; i++) {
+        if(i == requestingUserID) {
+            continue;
+        }
+        pthread_mutex_lock(&mutexUsers[i]);
         if(!(users[i].free) && strcmp(users[i].username, subscribedUsername) == 0) { 
+            pthread_mutex_lock(&mutexUsers[requestingUserID]);
             if(users[requestingUserID].subscribedUsers[i] == false) {
                 users[requestingUserID].subscribedUsers[i] = true;
+                pthread_mutex_unlock(&mutexUsers[requestingUserID]);
+                pthread_mutex_unlock(&mutexUsers[i]);
                 return 0;//success
             }
             else {
+                pthread_mutex_unlock(&mutexUsers[requestingUserID]);
+                pthread_mutex_unlock(&mutexUsers[i]);
                 return 2;//user already subscribed
             }
         }
+        pthread_mutex_unlock(&mutexUsers[i]);
     }
     return 1; //user not found
 }
 
 int unsubscribeUser(userData *users, int requestingUserID, char unsubscribedUsername[USERNAME_SIZE]) {
     for(int i = 0; i < MAX_CLIENTS; i++) {
+        if(i == requestingUserID) {
+            continue;
+        }
+        pthread_mutex_lock(&mutexUsers[i]);
         if(!(users[i].free) && strcmp(users[i].username, unsubscribedUsername) == 0) { 
+            pthread_mutex_lock(&mutexUsers[requestingUserID]);
             if(users[requestingUserID].subscribedUsers[i] == true) {
                 users[requestingUserID].subscribedUsers[i] = false;
+                pthread_mutex_unlock(&mutexUsers[requestingUserID]);
+                pthread_mutex_unlock(&mutexUsers[i]);
                 return 0;//success
             }
             else {
+                pthread_mutex_unlock(&mutexUsers[requestingUserID]);
+                pthread_mutex_unlock(&mutexUsers[i]);
                 return 2;//user was not subscribed
             }
         }
+        pthread_mutex_unlock(&mutexUsers[i]);
     }
     return 1; //user not found
 }
 
 void getSubscribedUsers(char* usersList, userData *users, int userID) {
-    usersList[0] = '\0';                
+    usersList[0] = '\0';
+    pthread_mutex_lock(&mutexUsers[userID]);                
     for(int i = 0;i < MAX_CLIENTS;i++) {
         if(users[userID].subscribedUsers[i] == true) {
             strcat(usersList, users[i].username);
         }
     }
+    pthread_mutex_unlock(&mutexUsers[userID]);  
     printf("Users subscribed by %d: (new line)\n%s end of list\n", userID, usersList);
 }
 
@@ -161,15 +191,63 @@ char *prepareAnswer(message *msg, char toSend[JSON_SIZE]) {
     return toSend;
 }
 
-bool writeMessageLength(int socketDesc, int length) {
-    return true;
+int findSocketIndex(int socket, int *connectionSocketDescriptors) {
+    for(int i = 0;i < MAX_CLIENTS;i++) {
+        pthread_mutex_lock(&mutexConnectionSocketDescriptors[i]);    
+        if(connectionSocketDescriptors[i] == socket) {
+            pthread_mutex_unlock(&mutexConnectionSocketDescriptors[i]);
+            return i;
+        }
+        pthread_mutex_unlock(&mutexConnectionSocketDescriptors[i]);
+    }
+    return -1;
 }
 
-bool writeMessage(int socketDesc, char* message) {
-    int msgSize = sizeof(message);
+bool writeMessageLength(int socketDesc, int length) {
+    int sent = 0;
+    char buffer[12];
     bool statusOk = true;
-    if (msgSize > 0) {
-        write(socketDesc, message, JSON_SIZE);
+    int charCount = sprintf(buffer, "#%d#", length);
+    bool cont = true;
+    // Send message length one character at a time
+    while(cont) {
+        int actSent = write(socketDesc, &buffer[sent], 1);
+        if (actSent < 0) {
+            statusOk = false;
+            cont = false;
+        } else {
+            sent += actSent;
+            if (sent == charCount) {
+                cont = false;
+            }
+        }
+    }
+    return statusOk;
+}
+
+bool writeMessage(int socketDesc, char message[], int messageSize) {
+    int msgSize = strlen(message);
+    bool statusOk = true;
+    int sent = 0;
+    if (msgSize > 0 && msgSize < JSON_SIZE) {
+        if (writeMessageLength(socketDesc, msgSize)) {
+            bool cont = true;
+            while(cont){
+                int wr = write(socketDesc, &message[sent], msgSize - sent);
+                if (wr >= 0) {
+                    sent += wr;
+                    if (sent >= msgSize) {
+                        cont = false;
+                    }
+                } else {
+                    std::cout<< pthread_self() << ": write returned with error (-1)!\n";
+                    cont = false;
+                    statusOk = false;
+                }
+            }
+        } else {
+            statusOk = false;
+        }
     } else {
         statusOk = false;
     }
@@ -177,16 +255,61 @@ bool writeMessage(int socketDesc, char* message) {
 }
 
 bool readMessageLength(int socketDesc, int& length) {
-    length = JSON_SIZE;
-    return true;
+    bool statusOk = true;
+    char socketBuf[1] = { '\0' };
+    char buffer[50];
+    memset(buffer, 0, sizeof(buffer));
+    int red;
+    red = read(socketDesc, socketBuf, 1);
+    if (red > 0 && socketBuf[0] == '#') {
+        bool cont = true;
+        red = 0;
+        while(cont) {
+            int rd = read(socketDesc, socketBuf, 1);
+            if (rd > 0) {
+                if (socketBuf[0] == '#') {
+                    cont = false;
+                } else {
+                    buffer[red] = socketBuf[0];
+                    red += rd;
+                }
+            } else {
+                cont = false;
+            }
+        }
+    } else {
+        statusOk = false;
+    }
+    length = std::atoi(buffer);
+    return statusOk;
 }
 
-bool readMessage(int socketDesc, char* buffer) {
-    int maxLen = sizeof(buffer);
+bool readMessage(int socketDesc, char buffer[], int bufferSize) {
+    int maxLen = bufferSize;
     int msgLen;
+    int red = 0;
     bool statusOk = true;
     if (readMessageLength(socketDesc, msgLen)) {
-        int red = read(socketDesc, buffer, maxLen);
+        if (msgLen < JSON_SIZE) {
+            bool cont = true;
+            while(cont) {
+                int rd = read(socketDesc, &buffer[red], maxLen - red);
+                if (rd > 0) {
+                    red += rd;
+                    if ( red >= msgLen) {
+                        cont = false;
+                    }
+                } else {
+                    if(rd == -1) {
+                        std::cout<< pthread_self() << ": read returned with error (-1)!\n";
+                    }
+                    statusOk = false;
+                    cont = false;
+                }
+            }
+        } else { 
+            statusOk = false;
+        }
     } else {
         statusOk = false;
     }
@@ -201,9 +324,9 @@ void *ThreadBehavior(void *voidThreadData)
     threadData *threadData = (struct threadData*)voidThreadData;
     json jmsg;
     message msg;   
-    pthread_mutex_lock(&mutexConnectionSocketDescriptors);    
+    pthread_mutex_lock(&mutexConnectionSocketDescriptors[threadData->clientDescIndex]);    
     int clientSocket = threadData->connectionSocketDescriptors[threadData->clientDescIndex];
-    pthread_mutex_unlock(&mutexConnectionSocketDescriptors);
+    pthread_mutex_unlock(&mutexConnectionSocketDescriptors[threadData->clientDescIndex]);
     int userID = -1;
     char username[USERNAME_SIZE];
     bool run = true;
@@ -211,20 +334,19 @@ void *ThreadBehavior(void *voidThreadData)
     while(run)
     {
         std::cout<< pthread_self() << ": waiting for data (read)\n";
-        //memset(&jmsg, 0, sizeof(json));  
         char receivedChar[JSON_SIZE];
-        memset(receivedChar, 0, JSON_SIZE);    
-        int received = read(clientSocket, receivedChar, JSON_SIZE);
-        if(received == 0) {
+        memset(receivedChar, 0, JSON_SIZE); 
+        if ( !readMessage(clientSocket, receivedChar, sizeof(receivedChar))) {
             std::cout<< pthread_self() << ": client disconnected, stopping thread...\n";
             run = false;
             continue;
-        }  
+        }
         std::string receivedStr(receivedChar);                    
         jmsg = json::parse(receivedStr);            
-        memset(&msg, 0, sizeof(struct message)); 
+        printf("%lu: received type: %d, size: %d Bytes\n", pthread_self(), msg.type, sizeof(receivedChar));  
+        memset(&msg, 0, sizeof(struct message));
         convertJsonToMsg(jmsg, &msg);
-        printf("%lu: received type: %d, size: %d Bytes\n", pthread_self(), msg.type, received);  
+        // printf("%lu: received type: %d, size: %d Bytes\n", pthread_self(), msg.type, sizeof(receivedChar));  
         if(msg.type == 100) {
             std::cout<< pthread_self() << ": client disconnected, stopping thread...\n";
             run = false;
@@ -233,17 +355,15 @@ void *ThreadBehavior(void *voidThreadData)
         if(userID == -1) {
             // authentication
             if(msg.type == 0) {
-                pthread_mutex_lock(&mutexUsers);
                 userID = authenticateUser(clientSocket, threadData->users, msg.username);
-                pthread_mutex_unlock(&mutexUsers);
                 if(userID == -1) {
                     std::cout <<  pthread_self() << ": Authentication failed.\n";
+                    continue;
                 }
                 else if (userID == -2) {
                     userID = -1;
                     std::cout <<  pthread_self() << ": user " << msg.username << " already logged in.\n";
                     msg.type = 2;
-                    write(clientSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
                 }
                 else {
                     std::cout << pthread_self() << ": Authentication success, userID: " << userID << ", username: " << msg.username << std::endl;
@@ -251,55 +371,55 @@ void *ThreadBehavior(void *voidThreadData)
                     memset(&msg, 0, sizeof(struct message));
                     msg.type = 1;
                     msg.userID = userID;
-                    pthread_mutex_lock(&mutexUsers);
                     getSubscribedUsers(msg.msg, threadData->users, userID);
-                    pthread_mutex_unlock(&mutexUsers);
-                    write(clientSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
                 }
             }
             else {
                 std::cout<< pthread_self() << ": Received unexpected type. Waiting for authentication request (type 0) but received: " << msg.type << ". Skipping..." << std::endl;
+                continue;
             }
         }
         else if (msg.type == 10) {
             // text message, only client thread sends message further
             if(msg.userID == userID) {
-                pthread_mutex_lock(&mutexUsers);
                 for(int i = 0; i < MAX_CLIENTS; i++) {
+                    pthread_mutex_lock(&mutexUsers[i]);  
                     if(threadData->users[i].free == true) {
+                        pthread_mutex_unlock(&mutexUsers[i]);  
                         continue;
                     }
                     int destinationSocket = threadData->users[i].socketDescriptor;
+                    int destinationSocketIndex = findSocketIndex(destinationSocket, threadData->connectionSocketDescriptors);
                     if(destinationSocket > 2 && destinationSocket != clientSocket) {
                         if(threadData->users[i].subscribedUsers[userID] == true) {
-                            int sent = write(destinationSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
-                            printf("%lu: wyslano type: %d, %d Bajtow\n", pthread_self(), msg.type, sent);
+                            pthread_mutex_lock(&mutexUsersWrite[destinationSocketIndex]);
+                            char *answer = prepareAnswer(&msg, toSend);
+                            if( !writeMessage(destinationSocket, answer, sizeof(answer))) {
+                                std::cout << "Could not send message from user " << msg.username << " to subscribed users" << std::endl;
+                            }
+                            pthread_mutex_unlock(&mutexUsersWrite[destinationSocketIndex]);
                         }
                     }
+                    pthread_mutex_unlock(&mutexUsers[i]);  
                 }
-                pthread_mutex_unlock(&mutexUsers);
             }
+            continue;
         }
         else if (msg.type == 20) {
             // subscribe
             if(strcmp(msg.msg, username) == 0) {
                 printf("%lu: user %s tried to subscribe himself, deny.\n", pthread_self(), msg.username);
                 msg.type = 23;
-                write(clientSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
             }
             else {
-                pthread_mutex_lock(&mutexUsers);
                 int status = subscribeUser(threadData->users, userID, msg.msg);
-                pthread_mutex_unlock(&mutexUsers);
                 if(status == 0) {
                     printf("%lu: user %s subscribed user %s\n", pthread_self(), msg.username, msg.msg);
                     msg.type = 21;
-                    write(clientSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
                 }
                 else {
                     printf("%lu: user %s failed to subscribe user %s, error code: %d\n", pthread_self(), msg.username, msg.msg, status);
                     msg.type = 22;
-                    write(clientSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
                 }
             }
         }
@@ -308,35 +428,38 @@ void *ThreadBehavior(void *voidThreadData)
             if(strcmp(msg.msg, username) == 0) {
                 printf("%lu: user %s tried to unsubscribe himself, deny.\n", pthread_self(), msg.username);
                 msg.type = 33;
-                write(clientSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
             }
             else {
-                pthread_mutex_lock(&mutexUsers);
                 int status = unsubscribeUser(threadData->users, userID, msg.msg);
-                pthread_mutex_unlock(&mutexUsers);
                 if(status == 0) {
                     printf("%lu: user %s unsubscribed user %s\n", pthread_self(), msg.username, msg.msg);
                     msg.type = 31;
-                    write(clientSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
                 }
                 else {
                     printf("%lu: user %s failed to unsubscribe user %s, error code: %d\n", pthread_self(), msg.username, msg.msg, status);
                     msg.type = 32;
-                    write(clientSocket, prepareAnswer(&msg, toSend), JSON_SIZE);
                 }
             }
         }
         else {
             std::cout<< pthread_self() << ": Received unexpected type: " << msg.type << ", skipping..." << std::endl;
+            continue;
         }
+        char *answer = prepareAnswer(&msg, toSend);
+        pthread_mutex_lock(&mutexUsersWrite[threadData->clientDescIndex]);
+        if( !writeMessage(clientSocket, answer, sizeof(answer))) {
+            std::cout << pthread_self() << ": Could not send message to client " << msg.username << std::endl;
+        }
+        pthread_mutex_unlock(&mutexUsersWrite[threadData->clientDescIndex]);
     }
     close(clientSocket);
-    pthread_mutex_lock(&mutexConnectionSocketDescriptors);
+    pthread_mutex_lock(&mutexConnectionSocketDescriptors[threadData->clientDescIndex]);
     threadData->connectionSocketDescriptors[threadData->clientDescIndex] = -1;
-    pthread_mutex_unlock(&mutexConnectionSocketDescriptors);
-    pthread_mutex_lock(&mutexUsers);
+    pthread_mutex_unlock(&mutexConnectionSocketDescriptors[threadData->clientDescIndex]);
+    pthread_mutex_lock(&mutexUsers[userID]);
     threadData->users[userID].socketDescriptor = -1;
-    pthread_mutex_unlock(&mutexUsers);
+    pthread_mutex_unlock(&mutexUsers[userID]);
+    delete threadData;
     std::cout<< pthread_self() << ": thread stopped.\n";
     pthread_exit(NULL);
 }
@@ -411,15 +534,16 @@ int main(int argc, char* argv[]) {
             continue;
         }
         int clientDescIndex = -1;
-        pthread_mutex_lock(&mutexConnectionSocketDescriptors);
         for(int i = 0;i < MAX_CLIENTS;i++) {
+            pthread_mutex_lock(&mutexConnectionSocketDescriptors[i]);
             if(connectionSocketDescriptors[i] == -1) {
                 connectionSocketDescriptors[i] = connectionSocketDescriptor;
                 clientDescIndex = i;
+                pthread_mutex_unlock(&mutexConnectionSocketDescriptors[i]);
                 break;
             }
+            pthread_mutex_unlock(&mutexConnectionSocketDescriptors[i]);
         }
-        pthread_mutex_unlock(&mutexConnectionSocketDescriptors);        
         if(clientDescIndex == -1) {
             close(connectionSocketDescriptor);
             std::cout << "Server: No free resources for another client, closing connection.";
