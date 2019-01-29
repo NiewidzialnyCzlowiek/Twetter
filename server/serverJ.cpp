@@ -10,7 +10,6 @@
 #include <stdbool.h>
 #include <iostream>
 #include <sys/ioctl.h>
-#include <sys/epoll.h>
 #include <sys/fcntl.h>
 #include <signal.h>
 #include <arpa/inet.h>
@@ -160,6 +159,38 @@ char *prepareAnswer(message *msg, char toSend[JSON_SIZE]) {
     memset(toSend, 0, JSON_SIZE);                
     strcpy(toSend, strToSend.c_str());
     return toSend;
+}
+
+bool writeMessageLength(int socketDesc, int length) {
+    return true;
+}
+
+bool writeMessage(int socketDesc, char* message) {
+    int msgSize = sizeof(message);
+    bool statusOk = true;
+    if (msgSize > 0) {
+        write(socketDesc, message, JSON_SIZE);
+    } else {
+        statusOk = false;
+    }
+    return statusOk;
+}
+
+bool readMessageLength(int socketDesc, int& length) {
+    length = JSON_SIZE;
+    return true;
+}
+
+bool readMessage(int socketDesc, char* buffer) {
+    int maxLen = sizeof(buffer);
+    int msgLen;
+    bool statusOk = true;
+    if (readMessageLength(socketDesc, msgLen)) {
+        int red = read(socketDesc, buffer, maxLen);
+    } else {
+        statusOk = false;
+    }
+    return statusOk;
 }
 
 //funkcja opisującą zachowanie wątku - musi przyjmować argument typu (void *) i zwracać (void *)
