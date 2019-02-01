@@ -16,12 +16,14 @@ export class SocketManager {
     private socket: Socket;
     private message: string;
     private connected: boolean;
+    private leftToRead: number;
 
     constructor(hostname: string, port: number, private window: BrowserWindow) {
         this.connected = false;
         this.message = "";
         this.posts = [];
         this.tags = [];
+        this.leftToRead = 0;
         try {
             this.socket = connect(port, hostname);
             this.socket.on("data", (data) => this.processMessage(data));
@@ -99,15 +101,20 @@ export class SocketManager {
         if (msg.indexOf("#", 1) > 0) {
             msg = msg.substr(msg.indexOf("#", 1) + 1);
         }
+        msg = msg.replace("#", "");
         return msg;
     }
 
     private processMessage(data: Buffer) {
         const length = this.getMessageLength(data);
+        if (length > 0) {
+            this.leftToRead = length;
+        }
         this.message += this.getMessageContents(data);
-        if (this.message.length >= length) {
-            const msg = JSON.parse(this.message) as IServerMessage;
+        if (this.message.length >= this.leftToRead) {
+            const msg = JSON.parse(this.message.substr(0, this.leftToRead)) as IServerMessage;
             this.message = "";
+            this.leftToRead = 0;
             switch (msg.type) {
                 case 10: {
                     this.addPost({
